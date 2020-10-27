@@ -1,15 +1,35 @@
 .main {
   max-width: 65rem;
   margin: 2.5rem auto;
+
+  position: relative;
+}
+
+.titleRow {
+  margin: 0 0 1rem;
+
+  display: flex;
+  justify-content: space-between;
 }
 
 .h1 {
   padding: 0;
-  margin: 0 0 1rem;
+  margin: 0;
+
+  display: inline-block;
+  width: auto;
 
   font-weight: 600;
   line-height: 1.5;
   font-size: 24px;
+}
+
+.select {
+  background: white;
+  border: 1px solid;
+  border-color: black;
+  border-radius: 6px;
+  padding: 10px;
 }
 
 .h2 {
@@ -34,6 +54,18 @@
 
   background-color: white;
   box-shadow: 0 0 35px 0 rgba(73, 80, 87, 0.15);
+
+  position: relative;
+}
+
+.button {
+  padding: 10px;
+  border: 1px solid;
+  border-color: #000;
+  border-radius: 6px;
+
+  background-color: white;
+  font-size: 16px;
 }
 
 .widgetTitle {
@@ -58,8 +90,9 @@
 }
 
 .widgetImage {
-  width: 50px;
-  height: 50px;
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
 }
 
 .widgeSubtext {
@@ -123,14 +156,24 @@
   border-right: 0;
 }
 
+.stats {
+  margin-top: 30px;
+}
+
 .bad {
   background-color: #d9534f;
   border-right-color: #d9534f;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .moderate {
   background-color: #ffeeaa;
   border-right-color: #ffeeaa;
-  font-weight: 600;
+  font-weight: 500;
+}
+
+.good {
+  background-color: #1bb99a;
+  border-right-color: #1bb99a;
+  font-weight: 500;
 }

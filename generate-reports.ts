@@ -11,6 +11,23 @@ const openDb = require("./db.ts");
     output: "json",
     onlyCategories: ["performance"],
     port: chrome.port,
+    throttling: {
+      // // The round trip time in milliseconds
+      rttMs: 50,
+      // // The network throughput in kilobytes per second
+      throughputKbps: 3840,
+      // // // devtools settings
+      // // // // The network request latency in milliseconds
+      // // // requestLatencyMs?: number;
+      // // // // The network download throughput in kilobytes per second
+      downloadThroughputKbps: 3840,
+      // // The network upload throughput in kilobytes per second
+      uploadThroughputKbps: 3840,
+      // uploadThroughputKbps?: number;
+      // // used by both
+      // // The amount of slowdown applied to the cpu (1/<cpuSlowdownMultiplier>)
+      cpuSlowdownMultiplier: 1,
+    },
   };
 
   const pagesToTest = [
@@ -31,32 +48,39 @@ const openDb = require("./db.ts");
 
   const timestamp = new Date().getTime();
 
-  for (let i = 0; i < pagesToTest.length; i++) {
-    const url = pagesToTest[i].url;
-    const name = pagesToTest[i].name;
-    const filename = `${timestamp}-${name}.json`;
+  const modes = ["mobile", "desktop"];
 
-    const runnerResult = await lighthouse(url, options);
-    const reportJson = runnerResult.report;
+  for (let modeI = 0; modeI < modes.length; modeI++) {
+    for (let i = 0; i < pagesToTest.length; i++) {
+      const url = pagesToTest[i].url;
+      const name = pagesToTest[i].name;
+      const filename = `${timestamp}-${name}-${modes[modeI]}.json`;
 
-    if (!fs.existsSync(`./reports/${timestamp}/`)) {
-      fs.mkdirSync(`./reports/${timestamp}/`);
-    }
-    fs.writeFileSync(`./reports/${timestamp}/${filename}`, reportJson);
+      const runnerResult = await lighthouse(url, {
+        ...options,
+        emulatedFormFactor: modes[modeI] === "desktop" ? "desktop" : undefined,
+      });
+      const reportJson = runnerResult.report;
 
-    const db = await openDb();
-    const resultObj = JSON.parse(runnerResult.report);
+      if (!fs.existsSync(`./reports/${timestamp}/`)) {
+        fs.mkdirSync(`./reports/${timestamp}/`);
+      }
+      fs.writeFileSync(`./reports/${timestamp}/${filename}`, reportJson);
 
-    await db.run(
-      `INSERT INTO reports (
+      const db = await openDb();
+      const resultObj = JSON.parse(runnerResult.report);
+
+      await db.run(
+        `INSERT INTO reports (
             runId,
             name,
+            mode,
             firstContentfulPaint,
             firstContentfulPaintDisplayValue,
             largestContentfulPaint,
             largestContentfulPaintDisplayValue,
-            firstMeaningfulPaint,
-            firstMeaningfulPaintDisplayValue,
+            cumulativeLayoutShift,
+            cumulativeLayoutShiftDisplayValue,
             loadFastEnoughForPwa,
             loadFastEnoughForPwaDisplayValue,
             speedIndex,
@@ -67,12 +91,13 @@ const openDb = require("./db.ts");
         ) VALUES (
             :runId,
             :name,
+            :mode,
             :firstContentfulPaint,
             :firstContentfulPaintDisplayValue,
             :largestContentfulPaint,
             :largestContentfulPaintDisplayValue,
-            :firstMeaningfulPaint,
-            :firstMeaningfulPaintDisplayValue,
+            :cumulativeLayoutShift,
+            :cumulativeLayoutShiftDisplayValue,
             :loadFastEnoughForPwa,
             :loadFastEnoughForPwaDisplayValue,
             :speedIndex,
@@ -81,38 +106,42 @@ const openDb = require("./db.ts");
             :interactiveDisplayValue,
             :jsonFile
         );`,
-      {
-        ":runId": timestamp,
-        ":name": name,
-        ":firstContentfulPaint":
-          resultObj["audits"]["first-contentful-paint"]["score"],
-        ":firstContentfulPaintDisplayValue":
-          resultObj["audits"]["first-contentful-paint"]["displayValue"],
-        ":largestContentfulPaint":
-          resultObj["audits"]["largest-contentful-paint"]["score"],
-        ":largestContentfulPaintDisplayValue":
-          resultObj["audits"]["largest-contentful-paint"]["displayValue"],
-        ":firstMeaningfulPaint":
-          resultObj["audits"]["first-meaningful-paint"]["score"],
-        ":firstMeaningfulPaintDisplayValue":
-          resultObj["audits"]["first-meaningful-paint"]["displayValue"],
-        ":loadFastEnoughForPwa":
-          (resultObj["audits"]["load-fast-enough-for-pwa"] &&
-            resultObj["audits"]["load-fast-enough-for-pwa"]["score"]) ||
-          "",
-        ":loadFastEnoughForPwaDisplayValue":
-          (resultObj["audits"]["load-fast-enough-for-pwa"] &&
-            resultObj["audits"]["load-fast-enough-for-pwa"]["displayValue"]) ||
-          "",
-        ":speedIndex": resultObj["audits"]["speed-index"]["score"],
-        ":speedIndexDisplayValue":
-          resultObj["audits"]["speed-index"]["displayValue"],
-        ":interactive": resultObj["audits"]["interactive"]["score"],
-        ":interactiveDisplayValue":
-          resultObj["audits"]["interactive"]["displayValue"],
-        ":jsonFile": filename,
-      }
-    );
+        {
+          ":runId": timestamp,
+          ":name": name,
+          ":mode": modes[modeI],
+          ":firstContentfulPaint":
+            resultObj["audits"]["first-contentful-paint"]["score"],
+          ":firstContentfulPaintDisplayValue":
+            resultObj["audits"]["first-contentful-paint"]["displayValue"],
+          ":largestContentfulPaint":
+            resultObj["audits"]["largest-contentful-paint"]["score"],
+          ":largestContentfulPaintDisplayValue":
+            resultObj["audits"]["largest-contentful-paint"]["displayValue"],
+          ":cumulativeLayoutShift":
+            resultObj["audits"]["cumulative-layout-shift"]["score"],
+          ":cumulativeLayoutShiftDisplayValue":
+            resultObj["audits"]["cumulative-layout-shift"]["displayValue"],
+          ":loadFastEnoughForPwa":
+            (resultObj["audits"]["load-fast-enough-for-pwa"] &&
+              resultObj["audits"]["load-fast-enough-for-pwa"]["score"]) ||
+            "",
+          ":loadFastEnoughForPwaDisplayValue":
+            (resultObj["audits"]["load-fast-enough-for-pwa"] &&
+              resultObj["audits"]["load-fast-enough-for-pwa"][
+                "displayValue"
+              ]) ||
+            "",
+          ":speedIndex": resultObj["audits"]["speed-index"]["score"],
+          ":speedIndexDisplayValue":
+            resultObj["audits"]["speed-index"]["displayValue"],
+          ":interactive": resultObj["audits"]["interactive"]["score"],
+          ":interactiveDisplayValue":
+            resultObj["audits"]["interactive"]["displayValue"],
+          ":jsonFile": filename,
+        }
+      );
+    }
   }
 
   await chrome.kill();
